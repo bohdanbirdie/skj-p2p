@@ -10,6 +10,7 @@ public class NodeInfo implements Serializable {
     private int pingPort;
     private long wasAliveTimestamp;
     private boolean isDead;
+    private boolean isActivePlayer;
 
 
     public NodeInfo(String ipAddess, int gamePort, int pingPort) {
@@ -17,6 +18,7 @@ public class NodeInfo implements Serializable {
         this.gamePort = gamePort;
         this.pingPort = pingPort;
         this.isDead = false;
+        this.isActivePlayer = false;
         this.wasAliveTimestamp = new Timestamp(System.currentTimeMillis()).getTime();
         toString();
     }
@@ -37,9 +39,19 @@ public class NodeInfo implements Serializable {
         return isDead;
     }
 
+    public boolean isActivePlayer() {
+        return isActivePlayer;
+    }
+
+    public void setActivePlayer(boolean activePlayer) {
+        isActivePlayer = activePlayer;
+        this.wasAliveTimestamp = new Timestamp(System.currentTimeMillis()).getTime();
+    }
+
     public void setWasAliveTimestamp(long newTimestamp) {
         this.wasAliveTimestamp = newTimestamp;
     }
+
     public void setWasAliveTimestamp() {
         this.wasAliveTimestamp = new Timestamp(System.currentTimeMillis()).getTime();
     }
@@ -59,13 +71,11 @@ public class NodeInfo implements Serializable {
         NodeInfo nodeInfo = (NodeInfo) o;
         return gamePort == nodeInfo.gamePort &&
                 pingPort == nodeInfo.pingPort &&
-//                isDead == nodeInfo.isDead &&
                 Objects.equals(ipAddess, nodeInfo.ipAddess);
     }
 
     @Override
     public int hashCode() {
-
         return Objects.hash(ipAddess, gamePort, pingPort);
     }
 
@@ -76,6 +86,8 @@ public class NodeInfo implements Serializable {
                 ", gamePort=" + gamePort +
                 ", pingPort=" + pingPort +
                 ", wasAliveTimestamp=" + wasAliveTimestamp +
+                ", isDead=" + isDead +
+                ", isActivePlayer=" + isActivePlayer +
                 '}';
     }
 }

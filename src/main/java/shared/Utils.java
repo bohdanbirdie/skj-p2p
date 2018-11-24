@@ -7,11 +7,11 @@ import java.util.stream.Stream;
 public class Utils {
     public synchronized static List<NodeInfo> mergerUniqueLatest(List<NodeInfo> first, List<NodeInfo> second){
         Map<Integer, List<NodeInfo>> grouped = Stream.concat(first.stream(), second.stream())
-//                .forEach(node )
                 .collect(Collectors.groupingBy(NodeInfo::getPingPort));
 
         List<NodeInfo> result = new ArrayList<>();
         Iterator<Map.Entry<Integer, List<NodeInfo>>> it = grouped.entrySet().iterator();
+
         while (it.hasNext()) {
             Map.Entry<Integer, List<NodeInfo>> pair = it.next();
 

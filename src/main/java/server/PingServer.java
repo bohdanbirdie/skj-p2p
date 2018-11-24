@@ -3,22 +3,30 @@ package server;
 import shared.NodeInfo;
 import shared.NodesInfoContainer;
 import shared.Utils;
+import tournament.GameResult;
+import tournament.Tournament;
 
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.List;
+import java.util.Map;
 
 public class PingServer implements Runnable {
 
     private ServerSocket server;
     private NodesInfoContainer nodesInfoContainer;
     private NodeInfo selfNode;
+    private Tournament tournament;
 
     public PingServer(ServerSocket server, NodesInfoContainer nodesInfoContainer, NodeInfo selfNode) {
         this.server = server;
         this.nodesInfoContainer = nodesInfoContainer;
         this.selfNode = selfNode;
+    }
+
+    public void setTournament(Tournament tournament) {
+        this.tournament = tournament;
     }
 
     public void run() {
@@ -42,11 +50,16 @@ public class PingServer implements Runnable {
 //                detectMessageType(merged);
 
                 oout.writeObject(merged);
+                Map<NodeInfo, List<GameResult>> newGamesMap = (Map<NodeInfo, List<GameResult>>) ooi.readObject();
+//                System.out.println(this.tournament.getGamesMap());
+                this.tournament.mergeGamesMapWithNewMap(newGamesMap);
+                oout.writeObject(this.tournament.getGamesMap());
 
                 socket.close();
             }
         } catch (Exception e) {
             System.out.println(e);
+            e.printStackTrace();
         }
     }
 
