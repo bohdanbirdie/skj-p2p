@@ -2,7 +2,6 @@ package server;
 
 import shared.NodeInfo;
 import shared.NodesInfoContainer;
-import shared.Utils;
 import tournament.GameResult;
 import tournament.Tournament;
 
@@ -30,30 +29,28 @@ public class PingServer implements Runnable {
     }
 
     public void run() {
-
-        System.out.println("waiting for new connections");
-
+        System.out.println("Ping server is waiting for new connections");
         try {
             while (true) {
-                // Блокируется до возникновения нового соединения:
                 Socket socket = server.accept();
+                ObjectOutputStream connectionOutputStream = new ObjectOutputStream((socket.getOutputStream()));
+                ObjectInputStream connectionInputStream = new ObjectInputStream(socket.getInputStream());
 
-
-                ObjectOutputStream oout = new ObjectOutputStream((socket.getOutputStream()));
-                ObjectInputStream ooi = new ObjectInputStream(socket.getInputStream());
-
-//                System.out.println("Read first");
-                List<NodeInfo> receivedNetworkNodesList = (List<NodeInfo>) ooi.readObject();
-//                List<NodeInfo> merged = Utils.mergerUniqueLatest(receivedNetworkNodesList, nodesInfoContainer.getNetworkNodes());
+                // Receive nodes list from the client
+                List<NodeInfo> receivedNetworkNodesList = (List<NodeInfo>) connectionInputStream.readObject();
+                // Merge nodes list with current list
                 nodesInfoContainer.setNetworkNodes(receivedNetworkNodesList);
-                List<NodeInfo> merged = nodesInfoContainer.getNetworkNodes();
-//                detectMessageType(merged);
+                List<NodeInfo> mergedNetworkNodesList = nodesInfoContainer.getNetworkNodes();
 
-                oout.writeObject(merged);
-                Map<NodeInfo, List<GameResult>> newGamesMap = (Map<NodeInfo, List<GameResult>>) ooi.readObject();
-//                System.out.println(this.tournament.getGamesMap());
+                // Return updated information to the client
+                connectionOutputStream.writeObject(mergedNetworkNodesList);
+
+                // Get tournament state from the client
+                Map<NodeInfo, List<GameResult>> newGamesMap = (Map<NodeInfo, List<GameResult>>) connectionInputStream.readObject();
+                // Merge client and self tournaments
                 this.tournament.mergeGamesMapWithNewMap(newGamesMap);
-                oout.writeObject(this.tournament.getGamesMap());
+                // Return updated tournament to the client
+                connectionOutputStream.writeObject(this.tournament.getGamesMap());
 
                 socket.close();
             }
@@ -63,15 +60,4 @@ public class PingServer implements Runnable {
         }
     }
 
-    public void detectMessageType(Object object) {
-        if (object instanceof String) {
-            System.out.println(object);
-        }
-
-        if (object instanceof List) {
-            if (((List) object).size() > 0 && ((List) object).get(0) instanceof NodeInfo) {
-                System.out.println(object);
-            }
-        }
-    }
 }

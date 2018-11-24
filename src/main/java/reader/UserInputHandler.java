@@ -3,19 +3,13 @@ package reader;
 import shared.ControlledLogger;
 import shared.NodesInfoContainer;
 import tournament.Tournament;
-
-import java.io.BufferedReader;
-import java.io.Console;
-import java.io.InputStreamReader;
 import java.util.Scanner;
 
 public class UserInputHandler implements Runnable {
-    private BufferedReader reader;
     private Tournament tournament;
     private NodesInfoContainer nodesInfoContainer;
 
     public UserInputHandler(NodesInfoContainer nodesInfoContainer) {
-        reader = new BufferedReader(new InputStreamReader(System.in));
         this.nodesInfoContainer = nodesInfoContainer;
     }
 
@@ -23,27 +17,34 @@ public class UserInputHandler implements Runnable {
         this.tournament = tournament;
     }
 
-    public void handleCommand(String command) {
+    private void handleCommand(String command) {
         switch (command.toLowerCase()) {
             case "quit": {
-                System.out.println("You typed " + command);
-                tournament.setSelfActiveStatus(false);
+                System.out.println("You typed '" + command + "'");
+                if (tournament.checkIfSelfPlayedWithEveryone(nodesInfoContainer)) {
+                    tournament.setSelfActiveStatus(false);
+                    nodesInfoContainer.setNodeToActivePlayer(tournament.getSelfNode(), false);
+                } else {
+                    System.out.println("You haven't finished the tournament yet.");
+                }
                 break;
             }
 
             case "join": {
-                System.out.println("You typed " + command);
+                System.out.println("You typed '" + command + "'");
                 tournament.setSelfActiveStatus(true);
-                nodesInfoContainer.setNodeToActivePlayer(tournament.getSelfNode());
+                nodesInfoContainer.setNodeToActivePlayer(tournament.getSelfNode(), true);
                 ControlledLogger.allowLogs();
                 break;
             }
 
             case "": {
                 if (ControlledLogger.areLogsAllowed()) {
-                    System.out.println("DISABLE LOGS");
                     ControlledLogger.disableLogs();
-                    System.out.println("Enter command QUIT to quit the tournament:");
+                    System.out.println("Please, enter one of commands:");
+                    System.out.println("JOIN to join the tournament");
+                    System.out.println("QUIT to quit the tournament:");
+                    System.out.println("EXIT close the application");
                 } else {
                     System.out.println("ENABLE LOGS");
                     ControlledLogger.allowLogs();
@@ -64,21 +65,12 @@ public class UserInputHandler implements Runnable {
 
     @Override
     public void run() {
-
-        String line;
-
         while (true) {
             Scanner keyboard = new Scanner(System.in);
-            boolean exit = false;
-            while (!exit) {
-                String input = keyboard.nextLine();
-
-                if (input != null) {
-                    handleCommand(input);
-                }
-
+            String input = keyboard.nextLine();
+            if (input != null) {
+                handleCommand(input);
             }
-//            keyboard.close();
         }
     }
 }

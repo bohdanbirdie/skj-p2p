@@ -19,7 +19,7 @@ public class NodesInfoContainer {
 
     public synchronized void updateNodeInfo(NodeInfo nodeInfo) {
         this.networkNodes.forEach(node -> {
-            if(node.equals(nodeInfo)) {
+            if (node.equals(nodeInfo)) {
                 node.setWasAliveTimestamp(new Timestamp(System.currentTimeMillis()).getTime());
             }
         });
@@ -33,10 +33,10 @@ public class NodesInfoContainer {
         });
     }
 
-    public synchronized void setNodeToActivePlayer(NodeInfo nodeInfo) {
+    public synchronized void setNodeToActivePlayer(NodeInfo nodeInfo, boolean status) {
         this.networkNodes.forEach(node -> {
             if (node.equals(nodeInfo)) {
-                node.setActivePlayer(true);
+                node.setActivePlayer(status);
             }
         });
     }
@@ -46,20 +46,26 @@ public class NodesInfoContainer {
     }
 
     public synchronized List<NodeInfo> getAvailableNodes(NodeInfo nodeInfo) {
-        return this.getNetworkNodes().stream().filter(node -> !node.equals(nodeInfo) && !node.isDead()).collect(Collectors.toList());
+        return this.getNetworkNodes()
+                .stream()
+                .filter(node -> !node.equals(nodeInfo) && !node.isDead())
+                .collect(Collectors.toList());
     }
 
     public synchronized List<NodeInfo> getAvailableNodesForGameOnly(NodeInfo nodeInfo) {
         return this.getNetworkNodes()
-                .stream().filter(node -> !node.equals(nodeInfo) && !node.isDead() && node.isActivePlayer())
+                .stream()
+                .filter(node -> !node.equals(nodeInfo) && !node.isDead() && node.isActivePlayer())
                 .collect(Collectors.toList());
     }
 
     public synchronized void setNetworkNodes(List<NodeInfo> networkNodes) {
         this.networkNodes = Utils.mergerUniqueLatest(this.networkNodes, networkNodes);
         if (selfNode != null) {
-            if (selfNode.isActivePlayer()){
-                setNodeToActivePlayer(selfNode);
+            if (selfNode.isActivePlayer()) {
+                setNodeToActivePlayer(selfNode, true);
+            } else {
+                setNodeToActivePlayer(selfNode, false);
             }
         }
     }

@@ -1,9 +1,9 @@
 package tournament;
 
 import shared.NodeInfo;
+import shared.NodesInfoContainer;
 
 import java.util.*;
-import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
 public class Tournament {
@@ -12,11 +12,8 @@ public class Tournament {
 
     public Tournament(NodeInfo nodeInfo) {
         this.selfNode = nodeInfo;
-//        System.out.println("Creating empty tournament");
         this.gamesMap = new HashMap<>();
-        if (nodeInfo.isActivePlayer()) {
-            this.gamesMap.put(nodeInfo, new ArrayList<>());
-        }
+        this.gamesMap.put(nodeInfo, new ArrayList<>());
     }
 
     public synchronized void setSelfActiveStatus(boolean status) {
@@ -27,13 +24,23 @@ public class Tournament {
         return selfNode;
     }
 
-    public synchronized void saveGameResultByKey(NodeInfo key, GameResult gameResult) {
-        List<GameResult> mapValue = this.gamesMap.get(key);
-        boolean keyExsist = mapValue != null;
-        if (keyExsist) {
-            mapValue.add(gameResult);
+    public synchronized void saveGameResultsForNodes(NodeInfo self, NodeInfo opponent, GameResult gameResult) {
+        List<GameResult> selfGames = this.gamesMap.get(self);
+        List<GameResult> opponentGames = this.gamesMap.get(opponent);
+
+        boolean keyExist = selfGames != null;
+
+        if (keyExist) {
+            selfGames.add(gameResult);
         } else {
-            this.gamesMap.put(key, new ArrayList<>(Arrays.asList(gameResult)));
+            this.gamesMap.put(self, new ArrayList<>(Collections.singletonList(gameResult)));
+        }
+
+        keyExist = opponentGames != null;
+        if (keyExist) {
+            opponentGames.add(gameResult);
+        } else {
+            this.gamesMap.put(opponent, new ArrayList<>(Collections.singletonList(gameResult)));
         }
     }
 
@@ -51,13 +58,20 @@ public class Tournament {
         if (gamesPlayedByMe == null) {
             return availableNodes;
         }
-        List<NodeInfo> listOfWhoIPlayedWith = gamesPlayedByMe.stream().map(GameResult::getOpponent).collect(Collectors.toList());
+        List<NodeInfo> whoIPlayedWith = gamesPlayedByMe
+                .stream()
+                .map(GameResult::getOpponent)
+                .collect(Collectors.toList());
 
-        return availableNodes.stream().filter(node -> !listOfWhoIPlayedWith.contains(node)).collect(Collectors.toList());
+        return availableNodes
+                .stream()
+                .filter(node -> !whoIPlayedWith.contains(node))
+                .collect(Collectors.toList());
     }
 
     public synchronized String checkIfIPlayedWith(NodeInfo nodeInfo) {
         List<GameResult> gamesPlayedByMe = this.gamesMap.get(selfNode);
+
         if (gamesPlayedByMe == null) return "not yet";
         List<GameResult> gamesPlayedByMeWithOther = gamesPlayedByMe
                 .stream()
@@ -71,47 +85,43 @@ public class Tournament {
     }
 
     public synchronized void mergeGamesMapWithNewMap(Map<NodeInfo, List<GameResult>> newMap) {
-
-        Map<NodeInfo, List<GameResult>> myConcurentMap = new HashMap<>();
+        Map<NodeInfo, List<GameResult>> myConcurrentMap = new HashMap<>();
 
         newMap.forEach((key, value) -> {
             boolean keyExist = this.gamesMap.get(key) != null;
             if (keyExist) {
                 List<GameResult> duplicatesList = new ArrayList<>(this.gamesMap.get(key));
                 duplicatesList.addAll(newMap.get(key));
+                duplicatesList.sort(Comparator.comparing(GameResult::getPlayedTimestamp).reversed());
                 Set<GameResult> setWithoutDuplicates = new HashSet<>(duplicatesList);
-                myConcurentMap.put(key, new ArrayList<>(setWithoutDuplicates));
+                myConcurrentMap.put(key, new ArrayList<>(setWithoutDuplicates));
             } else {
                 List<GameResult> duplicatesList = new ArrayList<>(newMap.get(key));
+                duplicatesList.sort(Comparator.comparing(GameResult::getPlayedTimestamp).reversed());
                 Set<GameResult> setWithoutDuplicates = new HashSet<>(duplicatesList);
-                myConcurentMap.put(key, new ArrayList<>(setWithoutDuplicates));
+                myConcurrentMap.put(key, new ArrayList<>(setWithoutDuplicates));
             }
         });
-//        System.out.println(myConcurentMap);
-        this.gamesMap = myConcurentMap;
-//
-//        for (NodeInfo key : newMap.keySet()) {
-//            boolean keyExsist = this.gamesMap.get(key) != null;
-//            if (keyExsist) {
-//                this.gamesMap.get(key).addAll(newMap.get(key));
-//            } else {
-//                this.gamesMap.put(key, newMap.get(key));
-//            }
-//        }
-//
-//        Iterator it = newMap.entrySet().iterator();
-//        while (it.hasNext()) {
-//            Map.Entry pair = (Map.Entry)it.next();
-////            System.out.println(pair.getKey() + " = " + pair.getValue());
-//
-//            NodeInfo key = (NodeInfo) pair.getKey();
-//            boolean keyExsist = this.gamesMap.get(pair.getKey()) != null;
-//            if (keyExsist) {
-//                this.gamesMap.get(key).addAll(newMap.get(key));
-//            } else {
-//                this.gamesMap.put(key, newMap.get(key));
-//            }
-//            it.remove(); // avoids a ConcurrentModificationException
-//        }
+
+        this.gamesMap = myConcurrentMap;
+    }
+
+    public boolean checkIfSelfPlayedWithEveryone(NodesInfoContainer nodesInfoContainer) {
+        List<NodeInfo> availableActiveAndNotDealPlayers = nodesInfoContainer.getNetworkNodes()
+                .stream()
+                .filter(nodeInfo -> nodeInfo.isActivePlayer() && !nodeInfo.isDead() && !nodeInfo.equals(selfNode))
+                .collect(Collectors.toList());
+
+        List<GameResult> selfPlayedGames = this.gamesMap.get(selfNode);
+        if (selfPlayedGames == null) return true;
+        List<NodeInfo> selfPlayedWith = selfPlayedGames
+                .stream()
+                .map(GameResult::getOpponent)
+                .filter(nodeInfo -> !nodeInfo.equals(selfNode))
+                .collect(Collectors.toList());
+
+        System.out.println(selfPlayedWith.size() + " " + availableActiveAndNotDealPlayers.size());
+
+        return selfPlayedWith.size() >= availableActiveAndNotDealPlayers.size();
     }
 }

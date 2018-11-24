@@ -32,47 +32,49 @@ public class PingClient implements Runnable {
     }
 
     private void printWhoIRemoved() {
+        // Print list of nodes that current node check and marked as dead
+        // Used to display that only few nodes will try to connect to dead nodes before being
+        // notified that node is dead by other nodes in the network
         ControlledLogger.log("I Removed: ");
         this.whoIRemoved.forEach(nodeInfo -> ControlledLogger.log(String.valueOf(nodeInfo.getPingPort())));
     }
 
-    private void notifyNnodes(int n, NodeInfo selfNode) {
-        for (int i = 0; i <= n; i++) {
-            List<NodeInfo> availableNodes = nodesInfoContainer.getAvailableNodes(selfNode);
-            if (i <= availableNodes.size()) {
-                try {
-                    NodeInfo nodeToCheck = availableNodes.get(i);
-                    Socket nodeToCheckSocket = new Socket(nodeToCheck.getIpAddess(), nodeToCheck.getPingPort());
-                    nodesInfoContainer.updateNodeInfo(nodeToCheck);
+    private void notifyNeighboursAboutDeadNode(int notifyAmount, NodeInfo selfNode) {
+        if (notifyAmount != 0) {
+            for (int i = 0; i <= notifyAmount; i++) {
+                List<NodeInfo> availableNodes = nodesInfoContainer.getAvailableNodes(selfNode);
+                if (i < availableNodes.size()) {
+                    try {
+                        NodeInfo nodeToCheck = availableNodes.get(i);
+                        Socket nodeToCheckSocket = new Socket(nodeToCheck.getIpAddess(), nodeToCheck.getPingPort());
+                        nodesInfoContainer.updateNodeInfo(nodeToCheck);
 
-                    ObjectOutputStream oout = new ObjectOutputStream((nodeToCheckSocket.getOutputStream()));
-                    ObjectInputStream ooin = new ObjectInputStream((nodeToCheckSocket.getInputStream()));
+                        ObjectOutputStream connectionOutputStream = new ObjectOutputStream((nodeToCheckSocket.getOutputStream()));
+                        ObjectInputStream connectionInputStream = new ObjectInputStream((nodeToCheckSocket.getInputStream()));
 
-                    oout.writeObject(nodesInfoContainer.getNetworkNodes());
+                        connectionOutputStream.writeObject(nodesInfoContainer.getNetworkNodes());
 
-                    List<NodeInfo> updatedNetworkNodes = (List<NodeInfo>) ooin.readObject();
-                    updatedNetworkNodes.sort(Comparator.comparing(NodeInfo::getWasAliveTimestamp));
-//                    System.out.println("Updated node");
+                        List<NodeInfo> updatedNetworkNodes = (List<NodeInfo>) connectionInputStream.readObject();
+                        updatedNetworkNodes.sort(Comparator.comparing(NodeInfo::getWasAliveTimestamp));
 
-//                    ControlledLogger.log("I know about: ");
-//                    updatedNetworkNodes.forEach(node -> ControlledLogger.log(node.getPingPort() + "  " + (node.isDead() ? "dead" : "alive")));
+                        nodesInfoContainer.setNetworkNodes(updatedNetworkNodes);
 
-                    nodesInfoContainer.setNetworkNodes(updatedNetworkNodes);
-
-                    exchangeTournamentState(oout, ooin, nodeToCheck);
-                    nodeToCheckSocket.close();
-                } catch (Exception e) {
-                    e.printStackTrace();
+                        exchangeTournamentState(connectionOutputStream, connectionInputStream, nodeToCheck);
+                        nodeToCheckSocket.close();
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
                 }
             }
-
+        } else {
+            ControlledLogger.log("No more nodes to connect");
         }
     }
 
-    public void exchangeTournamentState(ObjectOutputStream oout, ObjectInputStream ooin, NodeInfo nodeToCheck) {
+    private void exchangeTournamentState(ObjectOutputStream connectionOutputStream, ObjectInputStream connectionInputStream, NodeInfo nodeToCheck) {
         try {
-            oout.writeObject(this.tournament.getGamesMap());
-            Map<NodeInfo, List<GameResult>> updatedGamesMap = (Map<NodeInfo, List<GameResult>>) ooin.readObject();
+            connectionOutputStream.writeObject(this.tournament.getGamesMap());
+            Map<NodeInfo, List<GameResult>> updatedGamesMap = (Map<NodeInfo, List<GameResult>>) connectionInputStream.readObject();
             this.tournament.mergeGamesMapWithNewMap(updatedGamesMap);
         } catch (IOException e) {
             nodesInfoContainer.setNodeToDead(nodeToCheck);
@@ -82,25 +84,30 @@ public class PingClient implements Runnable {
         }
     }
 
-    public void proceedCommunation(Socket nodeToCheckSocket, NodeInfo nodeToCheck) throws IOException, ClassNotFoundException {
+    private void proceedCommunication(Socket nodeToCheckSocket, NodeInfo nodeToCheck) throws IOException, ClassNotFoundException {
 
         nodesInfoContainer.updateNodeInfo(nodeToCheck);
 
-        ObjectOutputStream oout = new ObjectOutputStream((nodeToCheckSocket.getOutputStream()));
-        ObjectInputStream ooin = new ObjectInputStream((nodeToCheckSocket.getInputStream()));
+        ObjectOutputStream connectionOutputStream = new ObjectOutputStream((nodeToCheckSocket.getOutputStream()));
+        ObjectInputStream connectionInputStream = new ObjectInputStream((nodeToCheckSocket.getInputStream()));
 
-        oout.writeObject(nodesInfoContainer.getNetworkNodes());
+        connectionOutputStream.writeObject(nodesInfoContainer.getNetworkNodes());
 
-        List<NodeInfo> updatedNetworkNodes = (List<NodeInfo>) ooin.readObject();
+        List<NodeInfo> updatedNetworkNodes = (List<NodeInfo>) connectionInputStream.readObject();
 
-        exchangeTournamentState(oout, ooin, nodeToCheck);
+        exchangeTournamentState(connectionOutputStream, connectionInputStream, nodeToCheck);
+
+        // Display nodes that we aware of
         ControlledLogger.log("I know about: ");
-        updatedNetworkNodes.forEach(node ->
-                ControlledLogger.log(node.getPingPort() + "  " +
-                        (node.isDead() ? "dead - " : "alive - ") +
-                        (node.isActivePlayer() ? "active - " : "n/active - ") +
-                        " plated w/: " + tournament.checkIfIPlayedWith(node))
-            );
+        updatedNetworkNodes
+                .stream()
+                .filter(nodeInfo -> !nodeInfo.equals(selfNode))
+                .forEach(node ->
+                        ControlledLogger.log(node.getPingPort() + "  " +
+                                (node.isDead() ? "dead - " : "alive - ") +
+                                (node.isActivePlayer() ? "active - " : "n/active - ") +
+                                " plated w/: " + tournament.checkIfIPlayedWith(node))
+                );
 
         nodesInfoContainer.setNetworkNodes(updatedNetworkNodes);
     }
@@ -109,8 +116,8 @@ public class PingClient implements Runnable {
     public void run() {
         while (true) {
             List<NodeInfo> availableNodes = nodesInfoContainer.getAvailableNodes(selfNode);
+            // Little bit of randomness in the application
             long speed = (long) (Utils.getRandomNumberInRange(500, 700) * availableNodes.size() * 0.2);
-//            long speed = 1500;
             try {
                 Thread.sleep(speed);
             } catch (InterruptedException e) {
@@ -118,12 +125,12 @@ public class PingClient implements Runnable {
             }
             availableNodes = nodesInfoContainer.getAvailableNodes(selfNode);
             if (availableNodes.size() > 0) {
-//                NodeInfo nodeToCheck = availableNodes.get(Utils.getRandomNumberInRange(0, availableNodes.size() - 1));
                 NodeInfo nodeToCheck = availableNodes.get(0);
+
                 try {
                     Socket nodeToCheckSocket = new Socket(nodeToCheck.getIpAddess(), nodeToCheck.getPingPort());
 
-//                    System.out.print("\033[H\033[2J");
+                    ControlledLogger.log("\033[H\033[2J");
                     printWhoIRemoved();
                     ControlledLogger.log("My speed is " + speed + "ms");
                     ControlledLogger.log("=======================");
@@ -131,13 +138,8 @@ public class PingClient implements Runnable {
                     ControlledLogger.log("My status " + (selfNode.isActivePlayer() ? "active" : "n/active"));
                     ControlledLogger.log("=======================\n");
 
-                    proceedCommunation(nodeToCheckSocket, nodeToCheck);
+                    proceedCommunication(nodeToCheckSocket, nodeToCheck);
 
-//                    try {
-//                        Thread.sleep(1000);
-//                    } catch (InterruptedException e) {
-//                        e.printStackTrace();
-//                    }
                     nodeToCheckSocket.close();
 
                 } catch (IOException e) {
@@ -145,17 +147,13 @@ public class PingClient implements Runnable {
                     nodesInfoContainer.setNodeToDead(nodeToCheck);
                     this.whoIRemoved.add(nodeToCheck);
 
-//                    ////////////////////
-//                    // Recall later
                     int n = availableNodes.size() / 3;
-                    System.out.println("TRY " + n);
-                    notifyNnodes(n, selfNode);
-//                    ////////////////////
+                    notifyNeighboursAboutDeadNode(n, selfNode);
 
-//                    e.printStackTrace();
                 } catch (ClassNotFoundException e) {
                     e.printStackTrace();
                 }
+
             }
         }
     }

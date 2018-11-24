@@ -1,5 +1,6 @@
 package server;
 
+import shared.GameSynchronizer;
 import shared.NodeInfo;
 import shared.NodesInfoContainer;
 import shared.Utils;
@@ -10,7 +11,6 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.List;
 
 public class GameServer implements Runnable {
 
@@ -30,10 +30,6 @@ public class GameServer implements Runnable {
     }
 
     public void run() {
-
-        System.out.println("waiting for new GAME connections");
-        System.out.println("Game server port is: " + server.getLocalPort());
-
         try {
             while (true) {
                 Socket socket = server.accept();
@@ -45,20 +41,29 @@ public class GameServer implements Runnable {
                 Integer receivedNumberFromClient = (Integer) ooi.readObject();
                 NodeInfo whoIPlayWith = (NodeInfo) ooi.readObject();
 
-                // Send server picked number
-                Integer serverNumber = Utils.getRandomNumberInRange(1, 10);
-                oout.writeObject(serverNumber);
-
-                // Receive result of the game from client
-                Boolean isServerWinner = (Boolean) ooi.readObject();
-                GameResult gameResult;
-                if (isServerWinner) {
-                    gameResult = new GameResult(selfNode, whoIPlayWith, selfNode);
+                if (tournament.checkIfIPlayedWith(whoIPlayWith) != "not yet" && GameSynchronizer.doIPlayWith(whoIPlayWith)) {
+                    System.out.println("DUPLICATE GAME");
+                    String response = "DECLINE";
+                    oout.writeObject(response);
                 } else {
-                    gameResult = new GameResult(selfNode, whoIPlayWith, whoIPlayWith);
-                }
+                    String response = "ACCEPT";
+                    oout.writeObject(response);
 
-                tournament.saveGameResultByKey(selfNode, gameResult);
+                    // Send server picked number
+                    Integer serverNumber = Utils.getRandomNumberInRange(1, 10);
+                    oout.writeObject(serverNumber);
+
+                    // Receive result of the game from client
+                    Boolean isServerWinner = (Boolean) ooi.readObject();
+                    GameResult gameResult;
+                    if (isServerWinner) {
+                        gameResult = new GameResult(selfNode, whoIPlayWith, selfNode);
+                    } else {
+                        gameResult = new GameResult(selfNode, whoIPlayWith, whoIPlayWith);
+                    }
+
+                    tournament.saveGameResultsForNodes(selfNode, whoIPlayWith, gameResult);
+                }
 
                 socket.close();
             }

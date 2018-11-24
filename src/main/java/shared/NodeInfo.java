@@ -20,7 +20,6 @@ public class NodeInfo implements Serializable {
         this.isDead = false;
         this.isActivePlayer = false;
         this.wasAliveTimestamp = new Timestamp(System.currentTimeMillis()).getTime();
-        toString();
     }
 
     public String getIpAddess() {
@@ -74,6 +73,7 @@ public class NodeInfo implements Serializable {
                 Objects.equals(ipAddess, nodeInfo.ipAddess);
     }
 
+    // We don't need a timestamp or dead status in the hash or equals()
     @Override
     public int hashCode() {
         return Objects.hash(ipAddess, gamePort, pingPort);

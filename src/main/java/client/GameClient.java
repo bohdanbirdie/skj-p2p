@@ -1,9 +1,6 @@
 package client;
 
-import shared.ControlledLogger;
-import shared.NodeInfo;
-import shared.NodesInfoContainer;
-import shared.Utils;
+import shared.*;
 import tournament.GameResult;
 import tournament.Tournament;
 
@@ -29,68 +26,65 @@ public class GameClient implements Runnable {
 
     public void proceedGame(Socket nodeToCheckSocket, NodeInfo whoIPlayWith) throws IOException, ClassNotFoundException {
 
+        GameSynchronizer.setCurrentPlayerWhoIPlayWith(whoIPlayWith);
         nodesInfoContainer.updateNodeInfo(whoIPlayWith);
 
-        ObjectOutputStream oout = new ObjectOutputStream((nodeToCheckSocket.getOutputStream()));
-        ObjectInputStream ooin = new ObjectInputStream((nodeToCheckSocket.getInputStream()));
+        ObjectOutputStream socketOutputStream = new ObjectOutputStream((nodeToCheckSocket.getOutputStream()));
+        ObjectInputStream socketInputStream = new ObjectInputStream((nodeToCheckSocket.getInputStream()));
 
         Integer clientNumber = Utils.getRandomNumberInRange(1, 10);
 
         // Send client node and picked number
-        oout.writeObject(clientNumber);
-        oout.writeObject(selfNode);
+        socketOutputStream.writeObject(clientNumber);
+        socketOutputStream.writeObject(selfNode);
 
-        Integer receivedNumberFromServer = (Integer) ooin.readObject();
+        String response = (String) socketInputStream.readObject();
+        if (response.equals("ACCEPT")) {
 
-        // We always start counting from client
-        Boolean isServerWinner = ((clientNumber + receivedNumberFromServer) % 2) == 0;
+            Integer receivedNumberFromServer = (Integer) socketInputStream.readObject();
 
-        System.out.println("I " + selfNode.getPingPort() + " played with " + whoIPlayWith.getPingPort() + " and " + (isServerWinner ? "won" : "lost"));
-        oout.writeObject(isServerWinner);
+            // We always start counting from client
+            Boolean isServerWinner = ((clientNumber + receivedNumberFromServer) % 2) == 0;
 
-        GameResult gameResult;
-        if (isServerWinner) {
-            gameResult = new GameResult(selfNode, whoIPlayWith, whoIPlayWith);
+            System.out.println("I " + selfNode.getPingPort() + " played with " + whoIPlayWith.getPingPort() + " and " + (isServerWinner ? "won" : "lost"));
+            socketOutputStream.writeObject(isServerWinner);
+
+            GameResult gameResult;
+            if (isServerWinner) {
+                gameResult = new GameResult(selfNode, whoIPlayWith, whoIPlayWith);
+            } else {
+                gameResult = new GameResult(selfNode, whoIPlayWith, selfNode);
+            }
+
+            tournament.saveGameResultsForNodes(selfNode, whoIPlayWith, gameResult);
+            nodeToCheckSocket.close();
         } else {
-            gameResult = new GameResult(selfNode, whoIPlayWith, selfNode);
+            nodeToCheckSocket.close();
+            GameSynchronizer.setCurrentPlayerWhoIPlayWith(null);
         }
-
-        tournament.saveGameResultByKey(selfNode, gameResult);
-
-
     }
 
     @Override
     public void run() {
         while (true) {
             long speed = (long) (Utils.getRandomNumberInRange(1000, 1200));
-//            long speed = (long) (2000);
             try {
                 Thread.sleep(speed);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
 
-            List<NodeInfo> allAvailableNodes = nodesInfoContainer.getAvailableNodesForGameOnly(selfNode);
-//            ControlledLogger.log("I can connect to " + allAvailableNodes);
-            List<NodeInfo> availableNodes = tournament.extractUnplayedNodes(allAvailableNodes, selfNode);
-//            ControlledLogger.log("I can connect to availableNodes " + availableNodes);
-            if (availableNodes.size() > 0 && selfNode.isActivePlayer()) {
-
-//                long speed = (long) (Utils.getRandomNumberInRange(500, 700) * availableNodes.size() * 0.2);
-
-                NodeInfo whoIPlayWith = availableNodes.get(0);
+            List<NodeInfo> availableNodesForGame = nodesInfoContainer.getAvailableNodesForGameOnly(selfNode);
+            List<NodeInfo> availableUnplayedWith = tournament.extractUnplayedNodes(availableNodesForGame, selfNode);
+            if (availableUnplayedWith.size() > 0 && selfNode.isActivePlayer()) {
+                NodeInfo whoIPlayWith = availableUnplayedWith.get(0);
                 try {
                     Socket nodeToCheckSocket = new Socket(whoIPlayWith.getIpAddess(), whoIPlayWith.getGamePort());
-
                     proceedGame(nodeToCheckSocket, whoIPlayWith);
-
                     nodeToCheckSocket.close();
-
                 } catch (IOException e) {
                     ControlledLogger.log("failed to to connect to " + whoIPlayWith);
                     nodesInfoContainer.setNodeToDead(whoIPlayWith);
-
                 } catch (ClassNotFoundException e) {
                     e.printStackTrace();
                 }
