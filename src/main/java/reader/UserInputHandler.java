@@ -24,6 +24,7 @@ public class UserInputHandler implements Runnable {
                 if (tournament.checkIfSelfPlayedWithEveryone(nodesInfoContainer)) {
                     tournament.setSelfActiveStatus(false);
                     nodesInfoContainer.setNodeToActivePlayer(tournament.getSelfNode(), false);
+                    tournament.printTournamentState();
                 } else {
                     System.out.println("You haven't finished the tournament yet.");
                 }

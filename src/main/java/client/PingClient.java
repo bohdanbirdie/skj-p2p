@@ -102,6 +102,7 @@ public class PingClient implements Runnable {
         updatedNetworkNodes
                 .stream()
                 .filter(nodeInfo -> !nodeInfo.equals(selfNode))
+                .sorted(Comparator.comparingInt(NodeInfo::getPingPort))
                 .forEach(node ->
                         ControlledLogger.log(node.getPingPort() + "  " +
                                 (node.isDead() ? "dead - " : "alive - ") +

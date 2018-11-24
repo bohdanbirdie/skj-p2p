@@ -53,4 +53,14 @@ public class GameResult implements Serializable {
     public int hashCode() {
         return Objects.hash(selfNode, opponent, winner);
     }
+
+    @Override
+    public String toString() {
+        return "GameResult{" +
+                "selfNode=" + selfNode +
+                ", opponent=" + opponent +
+                ", winner=" + winner +
+                ", playedTimestamp=" + playedTimestamp +
+                '}';
+    }
 }

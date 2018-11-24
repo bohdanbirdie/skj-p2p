@@ -11,6 +11,8 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.List;
+import java.util.Map;
 
 public class GameServer implements Runnable {
 
@@ -63,6 +65,9 @@ public class GameServer implements Runnable {
                     }
 
                     tournament.saveGameResultsForNodes(selfNode, whoIPlayWith, gameResult);
+                    oout.writeObject(tournament.getGamesMap());
+                    Map<NodeInfo, List<GameResult>> updatedGamesMap = (Map<NodeInfo, List<GameResult>>) ooi.readObject();
+                    tournament.mergeGamesMapWithNewMap(updatedGamesMap);
                 }
 
                 socket.close();

@@ -9,6 +9,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.util.List;
+import java.util.Map;
 
 public class GameClient implements Runnable {
     private NodesInfoContainer nodesInfoContainer;
@@ -57,17 +58,22 @@ public class GameClient implements Runnable {
             }
 
             tournament.saveGameResultsForNodes(selfNode, whoIPlayWith, gameResult);
+
+            Map<NodeInfo, List<GameResult>> updatedGamesMap = (Map<NodeInfo, List<GameResult>>) socketInputStream.readObject();
+            tournament.mergeGamesMapWithNewMap(updatedGamesMap);
+            socketOutputStream.writeObject(tournament.getGamesMap());
+
             nodeToCheckSocket.close();
         } else {
             nodeToCheckSocket.close();
-            GameSynchronizer.setCurrentPlayerWhoIPlayWith(null);
         }
+        GameSynchronizer.setCurrentPlayerWhoIPlayWith(null);
     }
 
     @Override
     public void run() {
         while (true) {
-            long speed = (long) (Utils.getRandomNumberInRange(1000, 1200));
+            long speed = (long) (Utils.getRandomNumberInRange(1500, 2000));
             try {
                 Thread.sleep(speed);
             } catch (InterruptedException e) {

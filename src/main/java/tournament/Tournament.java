@@ -66,6 +66,7 @@ public class Tournament {
         return availableNodes
                 .stream()
                 .filter(node -> !whoIPlayedWith.contains(node))
+                .filter(node -> !node.equals(selfNode))
                 .collect(Collectors.toList());
     }
 
@@ -106,7 +107,7 @@ public class Tournament {
         this.gamesMap = myConcurrentMap;
     }
 
-    public boolean checkIfSelfPlayedWithEveryone(NodesInfoContainer nodesInfoContainer) {
+    public synchronized boolean checkIfSelfPlayedWithEveryone(NodesInfoContainer nodesInfoContainer) {
         List<NodeInfo> availableActiveAndNotDealPlayers = nodesInfoContainer.getNetworkNodes()
                 .stream()
                 .filter(nodeInfo -> nodeInfo.isActivePlayer() && !nodeInfo.isDead() && !nodeInfo.equals(selfNode))
@@ -120,8 +121,30 @@ public class Tournament {
                 .filter(nodeInfo -> !nodeInfo.equals(selfNode))
                 .collect(Collectors.toList());
 
-        System.out.println(selfPlayedWith.size() + " " + availableActiveAndNotDealPlayers.size());
-
         return selfPlayedWith.size() >= availableActiveAndNotDealPlayers.size();
+    }
+
+    public synchronized void printTournamentState() {
+        Iterator<Map.Entry<NodeInfo, List<GameResult>>> it = this.gamesMap.entrySet().iterator();
+        Map<NodeInfo, Integer> winsMap = new HashMap<>();
+
+        while (it.hasNext()) {
+            Map.Entry<NodeInfo, List<GameResult>> pair = it.next();
+            NodeInfo key = pair.getKey();
+            List<GameResult> value = pair.getValue();
+            Integer wins = value
+                    .stream()
+                    .filter(result -> result.getWinner().equals(key) && result.getSelfNode().equals(key))
+                    .collect(Collectors.toList()).size();
+            winsMap.put(pair.getKey(), wins);
+            it.remove();
+        }
+
+        winsMap.entrySet()
+                .stream()
+                .sorted((n1, n2) -> n2.getValue() - n1.getValue())
+                .forEach(record -> System.out.println(record.getKey().getPingPort()
+                        + " won " + record.getValue() + " games"
+                        + (record.getKey().equals(selfNode) ? " - this player" : "")));
     }
 }
