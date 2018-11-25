@@ -45,10 +45,8 @@ public class HttpMonitorClient implements Runnable {
                 Thread.sleep(Utils.getRandomNumberInRange(900, 1300));
                 sendPost();
             } catch (InterruptedException e) {
-//                e.printStackTrace();
             } catch (Exception e) {
                 ControlledLogger.log("Unable to connect to monitor");
-//                e.printStackTrace();
             }
         }
     }
