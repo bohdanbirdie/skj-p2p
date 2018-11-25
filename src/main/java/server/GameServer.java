@@ -74,6 +74,7 @@ public class GameServer implements Runnable {
                     oout.writeObject(tournament.getGamesMap());
                     Map<NodeInfo, List<GameResult>> updatedGamesMap = (Map<NodeInfo, List<GameResult>>) ooi.readObject();
                     tournament.mergeGamesMapWithNewMap(updatedGamesMap);
+                    tournament.saveGameResultsForNodes(selfNode, whoIPlayWith, gameResult);
                     this.tournament.removeInactivePlayersFromTournament(this.nodesInfoContainer);
                 }
                 socket.close();

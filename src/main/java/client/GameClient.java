@@ -64,10 +64,10 @@ public class GameClient implements Runnable {
             }
 
             tournament.saveGameResultsForNodes(selfNode, whoIPlayWith, gameResult);
-
             Map<NodeInfo, List<GameResult>> updatedGamesMap = (Map<NodeInfo, List<GameResult>>) socketInputStream.readObject();
             tournament.mergeGamesMapWithNewMap(updatedGamesMap);
             this.tournament.removeInactivePlayersFromTournament(this.nodesInfoContainer);
+            tournament.saveGameResultsForNodes(selfNode, whoIPlayWith, gameResult);
             socketOutputStream.writeObject(tournament.getGamesMap());
 
             nodeToCheckSocket.close();

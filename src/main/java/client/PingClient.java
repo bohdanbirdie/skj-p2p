@@ -62,7 +62,7 @@ public class PingClient implements Runnable {
                         exchangeTournamentState(connectionOutputStream, connectionInputStream, nodeToCheck);
                         nodeToCheckSocket.close();
                     } catch (Exception e) {
-                        e.printStackTrace();
+//                        e.printStackTrace();
                     }
                 }
             }

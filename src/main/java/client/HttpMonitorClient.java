@@ -42,7 +42,7 @@ public class HttpMonitorClient implements Runnable {
     public void run() {
         while (true) {
             try {
-                Thread.sleep(Utils.getRandomNumberInRange(900, 1300));
+                Thread.sleep(Utils.getRandomNumberInRange(3000, 3500));
                 sendPost();
             } catch (InterruptedException e) {
             } catch (Exception e) {

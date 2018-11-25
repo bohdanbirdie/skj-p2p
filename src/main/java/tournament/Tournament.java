@@ -88,6 +88,22 @@ public class Tournament {
     public synchronized void mergeGamesMapWithNewMap(Map<NodeInfo, List<GameResult>> newMap) {
         Map<NodeInfo, List<GameResult>> myConcurrentMap = new HashMap<>();
 
+        this.gamesMap.forEach((key, value) -> {
+            boolean keyExist = newMap.get(key) != null;
+            if (keyExist) {
+                List<GameResult> duplicatesList = new ArrayList<>(newMap.get(key));
+                duplicatesList.addAll(this.gamesMap.get(key));
+                duplicatesList.sort(Comparator.comparing(GameResult::getPlayedTimestamp).reversed());
+                Set<GameResult> setWithoutDuplicates = new HashSet<>(duplicatesList);
+                myConcurrentMap.put(key, new ArrayList<>(setWithoutDuplicates));
+            } else {
+                List<GameResult> duplicatesList = new ArrayList<>(this.gamesMap.get(key));
+                duplicatesList.sort(Comparator.comparing(GameResult::getPlayedTimestamp).reversed());
+                Set<GameResult> setWithoutDuplicates = new HashSet<>(duplicatesList);
+                myConcurrentMap.put(key, new ArrayList<>(setWithoutDuplicates));
+            }
+        });
+
         newMap.forEach((key, value) -> {
             boolean keyExist = this.gamesMap.get(key) != null;
             if (keyExist) {
@@ -141,8 +157,8 @@ public class Tournament {
             List<GameResult> value = pair.getValue();
             Integer wins = value
                     .stream()
-                    .filter(result -> result.getWinner().equals(key) && result.getSelfNode().equals(key))
-                    .collect(Collectors.toList()).size();
+                    .filter(result -> result.getWinner().equals(key))
+                    .collect(Collectors.toList()).size() / 2;
             winsMap.put(pair.getKey(), wins);
             it.remove();
         }
