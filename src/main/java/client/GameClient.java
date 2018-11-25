@@ -25,7 +25,7 @@ public class GameClient implements Runnable {
         this.tournament = tournament;
     }
 
-    public void proceedGame(Socket nodeToCheckSocket, NodeInfo whoIPlayWith) throws IOException, ClassNotFoundException {
+    public void proceedGame(Socket nodeToCheckSocket, NodeInfo whoIPlayWith) throws Exception {
 
         GameSynchronizer.setCurrentPlayerWhoIPlayWith(whoIPlayWith);
         nodesInfoContainer.updateNodeInfo(whoIPlayWith);
@@ -34,15 +34,21 @@ public class GameClient implements Runnable {
         ObjectInputStream socketInputStream = new ObjectInputStream((nodeToCheckSocket.getInputStream()));
 
         Integer clientNumber = Utils.getRandomNumberInRange(1, 10);
+        Integer randomKey = Utils.getRandomNumberInRange(0, Utils.chars.length);
+
+        String encryptedNumber = Utils.encrypt(String.valueOf(clientNumber), randomKey);
 
         // Send client node and picked number
-        socketOutputStream.writeObject(clientNumber);
+        socketOutputStream.writeObject(encryptedNumber);
         socketOutputStream.writeObject(selfNode);
 
         String response = (String) socketInputStream.readObject();
         if (response.equals("ACCEPT")) {
 
-            Integer receivedNumberFromServer = (Integer) socketInputStream.readObject();
+            String serverEncryptedNumber = (String) socketInputStream.readObject();
+            socketOutputStream.writeObject(randomKey);
+            Integer serverRandomKey = (Integer) socketInputStream.readObject();
+            Integer receivedNumberFromServer = Integer.parseInt(Utils.decrypt(serverEncryptedNumber, serverRandomKey));
 
             // We always start counting from client
             Boolean isServerWinner = ((clientNumber + receivedNumberFromServer) % 2) == 0;
@@ -61,6 +67,7 @@ public class GameClient implements Runnable {
 
             Map<NodeInfo, List<GameResult>> updatedGamesMap = (Map<NodeInfo, List<GameResult>>) socketInputStream.readObject();
             tournament.mergeGamesMapWithNewMap(updatedGamesMap);
+            this.tournament.removeInactivePlayersFromTournament(this.nodesInfoContainer);
             socketOutputStream.writeObject(tournament.getGamesMap());
 
             nodeToCheckSocket.close();
@@ -92,6 +99,8 @@ public class GameClient implements Runnable {
                     ControlledLogger.log("failed to to connect to " + whoIPlayWith);
                     nodesInfoContainer.setNodeToDead(whoIPlayWith);
                 } catch (ClassNotFoundException e) {
+                    e.printStackTrace();
+                } catch (Exception e) {
                     e.printStackTrace();
                 }
             }

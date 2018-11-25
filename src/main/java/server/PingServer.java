@@ -49,6 +49,7 @@ public class PingServer implements Runnable {
                 Map<NodeInfo, List<GameResult>> newGamesMap = (Map<NodeInfo, List<GameResult>>) connectionInputStream.readObject();
                 // Merge client and self tournaments
                 this.tournament.mergeGamesMapWithNewMap(newGamesMap);
+                this.tournament.removeInactivePlayersFromTournament(this.nodesInfoContainer);
                 // Return updated tournament to the client
                 connectionOutputStream.writeObject(this.tournament.getGamesMap());
 

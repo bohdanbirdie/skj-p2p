@@ -76,6 +76,7 @@ public class PingClient implements Runnable {
             connectionOutputStream.writeObject(this.tournament.getGamesMap());
             Map<NodeInfo, List<GameResult>> updatedGamesMap = (Map<NodeInfo, List<GameResult>>) connectionInputStream.readObject();
             this.tournament.mergeGamesMapWithNewMap(updatedGamesMap);
+            this.tournament.removeInactivePlayersFromTournament(this.nodesInfoContainer);
         } catch (IOException e) {
             nodesInfoContainer.setNodeToDead(nodeToCheck);
             e.printStackTrace();
@@ -106,8 +107,8 @@ public class PingClient implements Runnable {
                 .forEach(node ->
                         ControlledLogger.log(node.getPingPort() + "  " +
                                 (node.isDead() ? "dead - " : "alive - ") +
-                                (node.isActivePlayer() ? "active - " : "n/active - ") +
-                                " plated w/: " + tournament.checkIfIPlayedWith(node))
+                                (node.isActivePlayer() ? "active - " : "not active - ") +
+                                " played with/: " + tournament.checkIfIPlayedWith(node))
                 );
 
         nodesInfoContainer.setNetworkNodes(updatedNetworkNodes);

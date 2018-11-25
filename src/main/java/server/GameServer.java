@@ -40,7 +40,7 @@ public class GameServer implements Runnable {
                 ObjectInputStream ooi = new ObjectInputStream(socket.getInputStream());
 
                 // Receive client node and picked number
-                Integer receivedNumberFromClient = (Integer) ooi.readObject();
+                String clientEncryptedNumber = (String) ooi.readObject();
                 NodeInfo whoIPlayWith = (NodeInfo) ooi.readObject();
 
                 if (tournament.checkIfIPlayedWith(whoIPlayWith) != "not yet" && GameSynchronizer.doIPlayWith(whoIPlayWith)) {
@@ -53,7 +53,13 @@ public class GameServer implements Runnable {
 
                     // Send server picked number
                     Integer serverNumber = Utils.getRandomNumberInRange(1, 10);
-                    oout.writeObject(serverNumber);
+                    Integer randomKey = Utils.getRandomNumberInRange(0, Utils.chars.length);
+
+                    String encryptedNumber = Utils.encrypt(String.valueOf(serverNumber), randomKey);
+
+                    oout.writeObject(encryptedNumber);
+                    Integer clientRandomKey = (Integer) ooi.readObject();
+                    oout.writeObject(randomKey);
 
                     // Receive result of the game from client
                     Boolean isServerWinner = (Boolean) ooi.readObject();
@@ -68,8 +74,8 @@ public class GameServer implements Runnable {
                     oout.writeObject(tournament.getGamesMap());
                     Map<NodeInfo, List<GameResult>> updatedGamesMap = (Map<NodeInfo, List<GameResult>>) ooi.readObject();
                     tournament.mergeGamesMapWithNewMap(updatedGamesMap);
+                    this.tournament.removeInactivePlayersFromTournament(this.nodesInfoContainer);
                 }
-
                 socket.close();
             }
         } catch (Exception e) {

@@ -107,6 +107,13 @@ public class Tournament {
         this.gamesMap = myConcurrentMap;
     }
 
+    public synchronized void removeInactivePlayersFromTournament(NodesInfoContainer nodesInfoContainer) {
+        nodesInfoContainer.getNetworkNodes()
+                .stream()
+                .filter(nodeInfo -> nodeInfo.isDead() || !nodeInfo.isActivePlayer())
+                .forEach(nodeInfo -> this.gamesMap.remove(nodeInfo));
+    }
+
     public synchronized boolean checkIfSelfPlayedWithEveryone(NodesInfoContainer nodesInfoContainer) {
         List<NodeInfo> availableActiveAndNotDealPlayers = nodesInfoContainer.getNetworkNodes()
                 .stream()
