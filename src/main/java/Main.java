@@ -1,6 +1,6 @@
 import client.GameClient;
+import client.HttpMonitorClient;
 import client.PingClient;
-import com.sun.tools.hat.internal.parser.Reader;
 import reader.UserInputHandler;
 import server.GameServer;
 import server.PingServer;
@@ -12,7 +12,6 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 
 public class Main {
     private static NodesInfoContainer nodesInfoContainer = new NodesInfoContainer();
@@ -52,6 +51,8 @@ public class Main {
         nodesInfoContainer.setSelfNode(selfNode);
         tournament = new Tournament(selfNode);
 
+        HttpMonitorClient httpMonitorClient = new HttpMonitorClient(tournament);
+
         pingServer = new PingServer(pingServerSocket, nodesInfoContainer, selfNode);
         Thread pingServerThread = new Thread(pingServer);
 
@@ -67,6 +68,8 @@ public class Main {
         UserInputHandler reader = new UserInputHandler(nodesInfoContainer);
         Thread readerThread = new Thread(reader);
 
+        Thread monitorThread = new Thread(httpMonitorClient);
+
         pingServer.setTournament(tournament);
         pingClient.setTournament(tournament);
         gameServer.setTournament(tournament);
@@ -78,6 +81,7 @@ public class Main {
         gameServerThread.start();
         clientGameThread.start();
         readerThread.start();
+        monitorThread.start();
     }
 
     public static ServerSocket createServerSocket(int currentPort) {
